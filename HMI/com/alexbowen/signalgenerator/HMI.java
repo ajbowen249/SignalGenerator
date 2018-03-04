@@ -12,6 +12,7 @@ import jssc.*;
 public class HMI implements Runnable {
     private static final String WINDOW_TITLE = "Signal Generator HMI";
     private static final String CONNECT_BUTTON = "Connect";
+    private static final String DISCONNECT_BUTTON = "Disconnect";
     private static final String INITIAL_STATUS = "Started";
     private static final String SEND_BUTTON = "Send";
 
@@ -20,6 +21,7 @@ public class HMI implements Runnable {
     private JFrame mMainWindow;
     private JComboBox mSerialPortField;
     private JButton mConnectButton;
+    private JButton mDisconnectButton;
     private JLabel mStatusBar;
     private JLabel mIntervalOnDevice;
     private JLabel mFrequency;
@@ -56,6 +58,14 @@ public class HMI implements Runnable {
             }
         );
 
+        mDisconnectButton = new JButton(DISCONNECT_BUTTON);
+        connectBar.add(mDisconnectButton);
+        mDisconnectButton.addActionListener(
+            new ActionListener() {
+                public void actionPerformed(java.awt.event.ActionEvent e) { disconnect(); }
+            }
+        );
+
         JPanel liveBar = new JPanel();
         liveBar.setLayout(new FlowLayout(FlowLayout.LEFT));
         controlsBox.add(liveBar);
@@ -76,19 +86,22 @@ public class HMI implements Runnable {
         updateBar.setLayout(new FlowLayout(FlowLayout.LEFT));
         controlsBox.add(updateBar);
 
+        ActionListener sendEventListner = new ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { send(); }
+        };
+
         mIntervalField = new JTextField("", 10);
+        mIntervalField.addActionListener(sendEventListner);
         updateBar.add(mIntervalField);
 
         mSendButton = new JButton(SEND_BUTTON);
         updateBar.add(mSendButton);
-        mSendButton.addActionListener(
-            new ActionListener() {
-                public void actionPerformed(java.awt.event.ActionEvent e) { send(); }
-            }
-        );
+        mSendButton.addActionListener(sendEventListner);
 
         mStatusBar = new JLabel(INITIAL_STATUS);
         mMainWindow.add(mStatusBar, BorderLayout.SOUTH);
+
+        disconnectedControls();
 
         mMainWindow.setVisible(true);
     }
@@ -112,10 +125,21 @@ public class HMI implements Runnable {
             }
 
             setStatus("Connected Successfully!");
+            connectedControls();
             getInterval();
         } catch (SerialPortException ex) {
             setStatus("Connection error: " + ex);
         }
+    }
+
+    private void disconnect() {
+        try {
+            mSerialPort.closePort();
+        } catch (SerialPortException ex) {
+            setStatus("Connection error: " + ex);
+        }
+
+        disconnectedControls();
     }
 
     private void send() {
@@ -165,6 +189,22 @@ public class HMI implements Runnable {
         }
 
         return null;
+    }
+
+    private void disconnectedControls() {
+        mSendButton.setEnabled(false);
+        mIntervalField.setEnabled(false);
+        mDisconnectButton.setEnabled(false);
+
+        mConnectButton.setEnabled(true);
+    }
+
+    private void connectedControls() {
+        mSendButton.setEnabled(true);
+        mIntervalField.setEnabled(true);
+        mDisconnectButton.setEnabled(true);
+
+        mConnectButton.setEnabled(false);
     }
 
     public static void main(String[] args) {
