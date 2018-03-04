@@ -13,8 +13,7 @@ public class HMI implements Runnable {
     private static final String WINDOW_TITLE = "Signal Generator HMI";
     private static final String CONNECT_BUTTON = "Connect";
     private static final String INITIAL_STATUS = "Started";
-
-    private static final String CMD_CONNECT = "connect";
+    private static final String SEND_BUTTON = "Send";
 
     private static final int DEFAULT_BAUDRATE = SerialPort.BAUDRATE_9600;
 
@@ -26,13 +25,15 @@ public class HMI implements Runnable {
     private JLabel mFrequency;
     private JLabel mPeriod;
     private JTextField mIntervalField;
+    private JButton mSendButton;
 
     private SerialPort mSerialPort;
 
     @Override
     public void run() {
         mMainWindow = new JFrame(WINDOW_TITLE);
-        mMainWindow.setSize(800, 600);
+        mMainWindow.setSize(470, 160);
+        mMainWindow.setResizable(false);
         mMainWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         mMainWindow.setLayout(new BorderLayout());
 
@@ -49,7 +50,6 @@ public class HMI implements Runnable {
 
         mConnectButton = new JButton(CONNECT_BUTTON);
         connectBar.add(mConnectButton);
-        mConnectButton.setActionCommand(CMD_CONNECT);
         mConnectButton.addActionListener(
             new ActionListener() {
                 public void actionPerformed(java.awt.event.ActionEvent e) { connect(); }
@@ -58,7 +58,7 @@ public class HMI implements Runnable {
 
         JPanel liveBar = new JPanel();
         liveBar.setLayout(new FlowLayout(FlowLayout.LEFT));
-        controlsBox.add(liveBar, BorderLayout.AFTER_LAST_LINE);
+        controlsBox.add(liveBar);
 
         liveBar.add(new JLabel("Interval: "));
         mIntervalOnDevice = new JLabel();
@@ -71,6 +71,21 @@ public class HMI implements Runnable {
         liveBar.add(new JLabel("Period: "));
         mPeriod = new JLabel();
         liveBar.add(mPeriod);
+
+        JPanel updateBar = new JPanel();
+        updateBar.setLayout(new FlowLayout(FlowLayout.LEFT));
+        controlsBox.add(updateBar);
+
+        mIntervalField = new JTextField("", 10);
+        updateBar.add(mIntervalField);
+
+        mSendButton = new JButton(SEND_BUTTON);
+        updateBar.add(mSendButton);
+        mSendButton.addActionListener(
+            new ActionListener() {
+                public void actionPerformed(java.awt.event.ActionEvent e) { send(); }
+            }
+        );
 
         mStatusBar = new JLabel(INITIAL_STATUS);
         mMainWindow.add(mStatusBar, BorderLayout.SOUTH);
@@ -97,6 +112,20 @@ public class HMI implements Runnable {
             }
 
             setStatus("Connected Successfully!");
+            getInterval();
+        } catch (SerialPortException ex) {
+            setStatus("Connection error: " + ex);
+        }
+    }
+
+    private void send() {
+        String value = mIntervalField.getText();
+        if(value.isEmpty()) {
+            return;
+        }
+
+        try {
+            mSerialPort.writeString("#interval=" + value + ";");
             getInterval();
         } catch (SerialPortException ex) {
             setStatus("Connection error: " + ex);
