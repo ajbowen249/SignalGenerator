@@ -6,17 +6,23 @@ import javax.management.MBeanServer;
 import javax.swing.*;
 
 import javafx.event.ActionEvent;
-
-import jssc.*;
+import java.io.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class HMI implements Runnable {
+    private static final boolean IS_WINDOWS = System.getProperty("os.name").toLowerCase().contains("windows");
+    private static final Pattern WINDOWS_COM_REGEX = Pattern.compile("Status for device (COM\\d+):");
+    private static final String WINDOWS_LIST_PORTS = "cmd /c mode";
+    private static final String WINDOWS_SETUP_PORT = "cmd /c mode %s:9600,N,8,1,P";
+
     private static final String WINDOW_TITLE = "Signal Generator HMI";
     private static final String CONNECT_BUTTON = "Connect";
     private static final String DISCONNECT_BUTTON = "Disconnect";
     private static final String INITIAL_STATUS = "Started";
     private static final String SEND_BUTTON = "Send";
-
-    private static final int DEFAULT_BAUDRATE = SerialPort.BAUDRATE_9600;
 
     private JFrame mMainWindow;
     private JComboBox mSerialPortField;
@@ -29,7 +35,7 @@ public class HMI implements Runnable {
     private JTextField mIntervalField;
     private JButton mSendButton;
 
-    private SerialPort mSerialPort;
+    private RandomAccessFile mPortFile;
 
     @Override
     public void run() {
@@ -47,7 +53,7 @@ public class HMI implements Runnable {
         connectBar.setLayout(new FlowLayout(FlowLayout.LEFT));
         controlsBox.add(connectBar, BorderLayout.NORTH);
 
-        mSerialPortField = new JComboBox(SerialPortList.getPortNames());
+        mSerialPortField = new JComboBox(getPorts());
         connectBar.add(mSerialPortField);
 
         mConnectButton = new JButton(CONNECT_BUTTON);
@@ -108,35 +114,63 @@ public class HMI implements Runnable {
 
     private void connect() {
         try {
-            mSerialPort = new SerialPort((String)mSerialPortField.getSelectedItem());
-            mSerialPort.openPort();
+            String portPath = (String)mSerialPortField.getSelectedItem();
+            setupPort(portPath);
+            if(IS_WINDOWS) portPath = "\\\\.\\" + portPath;
+            mPortFile = new RandomAccessFile(portPath, "rw");
 
-            mSerialPort.setParams(DEFAULT_BAUDRATE,
-                                  SerialPort.DATABITS_8,
-                                  SerialPort.STOPBITS_1,
-                                  SerialPort.PARITY_NONE
-            );
-
-            mSerialPort.setFlowControlMode(SerialPort.FLOWCONTROL_XONXOFF_IN | SerialPort.FLOWCONTROL_XONXOFF_OUT);
-
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-            }
+            Thread.sleep(2000);
 
             setStatus("Connected Successfully!");
             connectedControls();
             getInterval();
-        } catch (SerialPortException ex) {
-            setStatus("Connection error: " + ex);
+        } catch (Exception e) {
+            System.out.println("Error Connecting: " + e);
+        }
+    }
+
+    private String[] getPorts() {
+        try {
+            if(IS_WINDOWS) {
+                Process modeProc = Runtime.getRuntime().exec(WINDOWS_LIST_PORTS);
+                BufferedReader stdIn = new BufferedReader(new InputStreamReader(modeProc.getInputStream()));
+                List<String> ports = new ArrayList<String>();
+
+                String line;
+                while((line = stdIn.readLine()) != null) {
+                    Matcher comMatcher = WINDOWS_COM_REGEX.matcher(line);
+                    if(comMatcher.matches()) {
+                        ports.add(comMatcher.group(1));
+                    }
+                }
+
+                return ports.toArray(new String[0]);
+            } else {
+                setStatus("Error: unsupported platform.");
+                return new String[] { };
+            }
+        } catch(IOException e) {
+            setStatus("Error getting serial ports: " + e);
+            return new String[] { };
+        }
+    }
+
+    private void setupPort(String portName) {
+        if(IS_WINDOWS) {
+            try {
+                String command = String.format(WINDOWS_SETUP_PORT, portName);
+                Runtime.getRuntime().exec(command);
+            } catch (Exception e) {
+            System.out.println("Error setting up port: " + e);
+        }
         }
     }
 
     private void disconnect() {
         try {
-            mSerialPort.closePort();
-        } catch (SerialPortException ex) {
-            setStatus("Connection error: " + ex);
+            mPortFile.close();
+        } catch (Exception ex) {
+            setStatus("Disconnection error: " + ex);
         }
 
         disconnectedControls();
@@ -149,9 +183,9 @@ public class HMI implements Runnable {
         }
 
         try {
-            mSerialPort.writeString("#interval=" + value + ";");
+            mPortFile.write(("#interval=" + value + ";").getBytes("ASCII"));
             getInterval();
-        } catch (SerialPortException ex) {
+        } catch (Exception ex) {
             setStatus("Connection error: " + ex);
         }
     }
@@ -174,17 +208,11 @@ public class HMI implements Runnable {
 
     private String transact(String command) {
         try{
-            mSerialPort.writeString(command);
-            String recieved = "";
-            while(!recieved.endsWith("\n")) {
-                String newValue = mSerialPort.readString();
-                if(newValue != null) {
-                    recieved += newValue;
-                }
-            }
+            mPortFile.write(command.getBytes("ASCII"));
+            String response = mPortFile.readLine();
 
-            return recieved.replace("\r", "").replace("\n", "");
-        } catch (SerialPortException ex) {
+            return response.replace("\r", "").replace("\n", "");
+        } catch (Exception ex) {
             setStatus("Communication error: " + ex);
         }
 
