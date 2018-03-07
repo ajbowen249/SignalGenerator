@@ -45,6 +45,9 @@ public class HMI implements Runnable {
         mMainWindow.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         mMainWindow.setLayout(new BorderLayout());
 
+        mStatusBar = new JLabel(INITIAL_STATUS);
+        mMainWindow.add(mStatusBar, BorderLayout.SOUTH);
+
         JPanel controlsBox = new JPanel();
         controlsBox.setLayout(new BoxLayout(controlsBox, BoxLayout.Y_AXIS));
         mMainWindow.add(controlsBox, BorderLayout.NORTH);
@@ -103,9 +106,6 @@ public class HMI implements Runnable {
         mSendButton = new JButton(SEND_BUTTON);
         updateBar.add(mSendButton);
         mSendButton.addActionListener(sendEventListner);
-
-        mStatusBar = new JLabel(INITIAL_STATUS);
-        mMainWindow.add(mStatusBar, BorderLayout.SOUTH);
 
         disconnectedControls();
 
@@ -236,6 +236,11 @@ public class HMI implements Runnable {
     }
 
     public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+        }
+
         HMI app = new HMI();
         SwingUtilities.invokeLater(app);
     }
