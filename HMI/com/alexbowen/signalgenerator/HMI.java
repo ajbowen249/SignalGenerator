@@ -5,7 +5,6 @@ import java.awt.event.ActionListener;
 import javax.management.MBeanServer;
 import javax.swing.*;
 
-import javafx.event.ActionEvent;
 import java.io.*;
 import java.util.List;
 import java.util.ArrayList;
@@ -16,7 +15,12 @@ public class HMI implements Runnable {
     private static final boolean IS_WINDOWS = System.getProperty("os.name").toLowerCase().contains("windows");
     private static final Pattern WINDOWS_COM_REGEX = Pattern.compile("Status for device (COM\\d+):");
     private static final String WINDOWS_LIST_PORTS = "cmd /c mode";
-    private static final String WINDOWS_SETUP_PORT = "cmd /c mode %s:9600,N,8,1,P";
+    private static final String WINDOWS_SET_UP_PORT = "cmd /c mode %s:9600,N,8,1,P";
+
+    private static final boolean IS_LINUX = System.getProperty("os.name").toLowerCase().contains("linux");
+    private static final Pattern LINUX_USBTTY_REGEX = Pattern.compile("(ttyUSB\\d+)");
+    private static final String LINUX_LIST_PORTS = "ls /dev";
+    private static final String LINUX_SET_UP_PORT = "stty -F %s ixon -cstopb -parenb 9600";
 
     private static final String WINDOW_TITLE = "Signal Generator HMI";
     private static final String CONNECT_BUTTON = "Connect";
@@ -35,7 +39,8 @@ public class HMI implements Runnable {
     private JTextField mIntervalField;
     private JButton mSendButton;
 
-    private RandomAccessFile mPortFile;
+    private BufferedReader mInputStream;
+    private FileOutputStream mOutputStream;
 
     @Override
     public void run() {
@@ -115,9 +120,11 @@ public class HMI implements Runnable {
     private void connect() {
         try {
             String portPath = (String)mSerialPortField.getSelectedItem();
+            if(IS_LINUX) portPath = "/dev/" + portPath;
             setupPort(portPath);
             if(IS_WINDOWS) portPath = "\\\\.\\" + portPath;
-            mPortFile = new RandomAccessFile(portPath, "rw");
+            mInputStream = new BufferedReader(new InputStreamReader(new FileInputStream(portPath)));
+            mOutputStream = new FileOutputStream(portPath);
 
             Thread.sleep(2000);
 
@@ -145,6 +152,20 @@ public class HMI implements Runnable {
                 }
 
                 return ports.toArray(new String[0]);
+            } else if(IS_LINUX) {
+                Process lsProc = Runtime.getRuntime().exec(LINUX_LIST_PORTS);
+                BufferedReader stdIn = new BufferedReader(new InputStreamReader(lsProc.getInputStream()));
+                List<String> ports = new ArrayList<String>();
+
+                String line;
+                while((line = stdIn.readLine()) != null) {
+                    Matcher ttyMatcher = LINUX_USBTTY_REGEX.matcher(line);
+                    if(ttyMatcher.matches()) {
+                        ports.add(ttyMatcher.group(1));
+                    }
+                }
+
+                return ports.toArray(new String[0]);
             } else {
                 setStatus("Error: unsupported platform.");
                 return new String[] { };
@@ -156,19 +177,31 @@ public class HMI implements Runnable {
     }
 
     private void setupPort(String portName) {
+        String errorPrefix = "Error setting up port: ";
         if(IS_WINDOWS) {
             try {
-                String command = String.format(WINDOWS_SETUP_PORT, portName);
+                String command = String.format(WINDOWS_SET_UP_PORT, portName);
                 Runtime.getRuntime().exec(command);
             } catch (Exception e) {
-            System.out.println("Error setting up port: " + e);
+                System.out.println(errorPrefix + e);
+            }
+
+            return;
         }
+
+        if(IS_LINUX) {
+            try {
+                String command = String.format(LINUX_SET_UP_PORT, portName);
+                Runtime.getRuntime().exec(command);
+            } catch (Exception e) {
+                System.out.println(errorPrefix + e);
+            }
         }
     }
 
     private void disconnect() {
         try {
-            mPortFile.close();
+            mInputStream.close();
         } catch (Exception ex) {
             setStatus("Disconnection error: " + ex);
         }
@@ -183,7 +216,7 @@ public class HMI implements Runnable {
         }
 
         try {
-            mPortFile.write(("#interval=" + value + ";").getBytes("ASCII"));
+            mOutputStream.write(("#interval=" + value + ";").getBytes("ASCII"));
             getInterval();
         } catch (Exception ex) {
             setStatus("Connection error: " + ex);
@@ -208,8 +241,11 @@ public class HMI implements Runnable {
 
     private String transact(String command) {
         try{
-            mPortFile.write(command.getBytes("ASCII"));
-            String response = mPortFile.readLine();
+            mOutputStream.write(command.getBytes("ASCII"));
+            String response = "";
+            while(response == null || response.isEmpty()) {
+                response = mInputStream.readLine();
+            }
 
             return response.replace("\r", "").replace("\n", "");
         } catch (Exception ex) {
