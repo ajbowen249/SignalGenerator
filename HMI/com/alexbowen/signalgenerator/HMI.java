@@ -39,6 +39,7 @@ public class HMI implements Runnable {
     private JTextField mIntervalField;
     private JButton mSendButton;
 
+    private RandomAccessFile mPortFile;
     private BufferedReader mInputStream;
     private FileOutputStream mOutputStream;
 
@@ -120,11 +121,16 @@ public class HMI implements Runnable {
     private void connect() {
         try {
             String portPath = (String)mSerialPortField.getSelectedItem();
-            if(IS_LINUX) portPath = "/dev/" + portPath;
+            if (IS_LINUX) portPath = "/dev/" + portPath;
             setupPort(portPath);
-            if(IS_WINDOWS) portPath = "\\\\.\\" + portPath;
-            mInputStream = new BufferedReader(new InputStreamReader(new FileInputStream(portPath)));
-            mOutputStream = new FileOutputStream(portPath);
+            if (IS_WINDOWS) portPath = "\\\\.\\" + portPath;
+
+            if (IS_WINDOWS) {
+                mPortFile = new RandomAccessFile(portPath, "rw");
+            } else {
+                mInputStream = new BufferedReader(new InputStreamReader(new FileInputStream(portPath)));
+                mOutputStream = new FileOutputStream(portPath);
+            }
 
             Thread.sleep(2000);
 
@@ -138,30 +144,16 @@ public class HMI implements Runnable {
 
     private String[] getPorts() {
         try {
-            if(IS_WINDOWS) {
-                Process modeProc = Runtime.getRuntime().exec(WINDOWS_LIST_PORTS);
-                BufferedReader stdIn = new BufferedReader(new InputStreamReader(modeProc.getInputStream()));
+            if (IS_WINDOWS || IS_LINUX) {
+                Process proc = Runtime.getRuntime().exec(IS_WINDOWS ? WINDOWS_LIST_PORTS : LINUX_LIST_PORTS);
+                BufferedReader stdIn = new BufferedReader(new InputStreamReader(proc.getInputStream()));
                 List<String> ports = new ArrayList<String>();
 
                 String line;
                 while((line = stdIn.readLine()) != null) {
-                    Matcher comMatcher = WINDOWS_COM_REGEX.matcher(line);
-                    if(comMatcher.matches()) {
-                        ports.add(comMatcher.group(1));
-                    }
-                }
-
-                return ports.toArray(new String[0]);
-            } else if(IS_LINUX) {
-                Process lsProc = Runtime.getRuntime().exec(LINUX_LIST_PORTS);
-                BufferedReader stdIn = new BufferedReader(new InputStreamReader(lsProc.getInputStream()));
-                List<String> ports = new ArrayList<String>();
-
-                String line;
-                while((line = stdIn.readLine()) != null) {
-                    Matcher ttyMatcher = LINUX_USBTTY_REGEX.matcher(line);
-                    if(ttyMatcher.matches()) {
-                        ports.add(ttyMatcher.group(1));
+                    Matcher listMatcher = (IS_WINDOWS ? WINDOWS_COM_REGEX : LINUX_USBTTY_REGEX).matcher(line);
+                    if (listMatcher.matches()) {
+                        ports.add(listMatcher.group(1));
                     }
                 }
 
@@ -178,24 +170,11 @@ public class HMI implements Runnable {
 
     private void setupPort(String portName) {
         String errorPrefix = "Error setting up port: ";
-        if(IS_WINDOWS) {
-            try {
-                String command = String.format(WINDOWS_SET_UP_PORT, portName);
-                Runtime.getRuntime().exec(command);
-            } catch (Exception e) {
-                System.out.println(errorPrefix + e);
-            }
-
-            return;
-        }
-
-        if(IS_LINUX) {
-            try {
-                String command = String.format(LINUX_SET_UP_PORT, portName);
-                Runtime.getRuntime().exec(command);
-            } catch (Exception e) {
-                System.out.println(errorPrefix + e);
-            }
+        String command = IS_WINDOWS ? String.format(WINDOWS_SET_UP_PORT, portName) : String.format(LINUX_SET_UP_PORT, portName);
+        try {
+            Runtime.getRuntime().exec(command);
+        } catch (Exception e) {
+            System.out.println(errorPrefix + e);
         }
     }
 
@@ -211,12 +190,12 @@ public class HMI implements Runnable {
 
     private void send() {
         String value = mIntervalField.getText();
-        if(value.isEmpty()) {
+        if (value.isEmpty()) {
             return;
         }
 
         try {
-            mOutputStream.write(("#interval=" + value + ";").getBytes("ASCII"));
+            write("#interval=" + value + ";");
             getInterval();
         } catch (Exception ex) {
             setStatus("Connection error: " + ex);
@@ -241,13 +220,8 @@ public class HMI implements Runnable {
 
     private String transact(String command) {
         try{
-            mOutputStream.write(command.getBytes("ASCII"));
-            String response = "";
-            while(response == null || response.isEmpty()) {
-                response = mInputStream.readLine();
-            }
-
-            return response.replace("\r", "").replace("\n", "");
+            write(command);
+            return readLine();
         } catch (Exception ex) {
             setStatus("Communication error: " + ex);
         }
@@ -269,6 +243,27 @@ public class HMI implements Runnable {
         mDisconnectButton.setEnabled(true);
 
         mConnectButton.setEnabled(false);
+    }
+
+    private void write(String command) throws IOException {
+        if (IS_WINDOWS) {
+            mPortFile.write(command.getBytes("ASCII"));
+        } else {
+            mOutputStream.write(command.getBytes("ASCII"));
+        }
+    }
+
+    private String readLine() throws IOException {
+        String response = "";
+        while(response == null || response.isEmpty()) {
+            if (IS_WINDOWS) {
+                response = mPortFile.readLine();
+            } else {
+                response = mInputStream.readLine();
+            }
+        }
+
+        return response.replace("\r", "").replace("\n", "");
     }
 
     public static void main(String[] args) {
