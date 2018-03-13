@@ -29,7 +29,7 @@ public class HMI implements Runnable {
     private static final String SEND_BUTTON = "Send";
 
     private JFrame mMainWindow;
-    private JComboBox mSerialPortField;
+    private JComboBox<String> mSerialPortField;
     private JButton mConnectButton;
     private JButton mDisconnectButton;
     private JLabel mStatusBar;
@@ -62,7 +62,7 @@ public class HMI implements Runnable {
         connectBar.setLayout(new FlowLayout(FlowLayout.LEFT));
         controlsBox.add(connectBar, BorderLayout.NORTH);
 
-        mSerialPortField = new JComboBox(getPorts());
+        mSerialPortField = new JComboBox<>(getPorts());
         connectBar.add(mSerialPortField);
 
         mConnectButton = new JButton(CONNECT_BUTTON);

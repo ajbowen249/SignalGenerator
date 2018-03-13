@@ -5,10 +5,19 @@
 #include "config.h"
 
 FunctionGenerator::FunctionGenerator() {
-    pinMode(PIN, OUTPUT);
     _interval = DEFAULT_INTERVAL;
+}
+
+void FunctionGenerator::start() {
+    pinMode(GENERATOR_PIN, OUTPUT);
     Timer1.initialize(_interval);
     Timer1.attachInterrupt(toggle);
+    Timer1.start();
+}
+
+void FunctionGenerator::stop() {
+    Timer1.stop();
+    Timer1.detachInterrupt();
 }
 
 long FunctionGenerator::getInterval() {
@@ -23,5 +32,5 @@ void FunctionGenerator::setInterval(long newInterval) {
 }
 
 void toggle() {
-    PORT ^= BIT_MASK;
+    GENERATOR_PORT ^= GENERATOR_BIT_MASK;
 }

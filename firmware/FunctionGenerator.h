@@ -11,6 +11,8 @@ class FunctionGenerator {
 
     public:
         FunctionGenerator();
+        void start();
+        void stop();
         long getInterval();
         void setInterval(long newInterval);
 };

@@ -12,6 +12,7 @@ SerialServer G_Server(&G_Generator);
 
 void setup() {
     Serial.begin(9600);
+    G_Generator.start();
 }
 
 void loop() {
