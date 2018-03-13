@@ -1,7 +1,6 @@
 #include "FunctionGenerator.h"
 #include "TimerOne.h"
 
-#define CONFIG_UNO_BASIC 1
 #include "config.h"
 
 FunctionGenerator::FunctionGenerator() {

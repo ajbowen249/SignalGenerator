@@ -1,11 +1,17 @@
 #ifndef __EEPROMPROGRAMMER_H_
 #define __EEPROMPROGRAMMER_H_
 
+#include <Arduino.h>
+
 /*
 This should eventually be able to handle more than one type of EEPROM.
 Pinouts for known types are as follows:
 
 Parallel24
+       ──────||──────
+       ──────||──────
+       ──────||──────
+       ──────||──────
          ┌───┐┌───┐
    A7 1 ─┤        ├─ 24 VCC
    A6 2 ─┤        ├─ 23 A8
@@ -22,6 +28,8 @@ Parallel24
          └────────┘
 
 Parallel28
+       ──────||──────
+       ──────||──────
          ┌───┐┌───┐
   A14 1 ─┤        ├─ 28 VCC
   A12 2 ─┤        ├─ 27 /WE
@@ -67,22 +75,22 @@ register to take over reading.
 
 ZIF Socket
                  ┌───┐┌───┐
-        O0[0] 1 ─┤        ├─ 32 O3[6]
-        O0[1] 2 ─┤        ├─ 31 O3[5]
-        O0[2] 3 ─┤        ├─ 30 O3[4]
-        O0[3] 4 ─┤        ├─ 29 O3[3]
-        O0[4] 5 ─┤        ├─ 28 O3[2]
-        O0[5] 6 ─┤        ├─ 27 O3[1]
-        O0[6] 7 ─┤        ├─ 26 O3[0]
-        O0[7] 8 ─┤        ├─ 25 O1[7]
-        O1[0] 9 ─┤        ├─ 24 O1[6]
-       O1[1] 10 ─┤        ├─ 23 O1[5]
-       O1[2] 11 ─┤        ├─ 22 O1[4]
+        O0[0] 1 ─┤        ├─ 32 O3[7]
+        O0[1] 2 ─┤        ├─ 31 O3[6]
+        O0[2] 3 ─┤        ├─ 30 O3[5]
+        O0[3] 4 ─┤        ├─ 29 O3[4]
+        O0[4] 5 ─┤        ├─ 28 O3[3]
+        O0[5] 6 ─┤        ├─ 27 O3[2]
+        O0[6] 7 ─┤        ├─ 26 O3[1]
+        O0[7] 8 ─┤        ├─ 25 O3[0]
+        O1[0] 9 ─┤        ├─ 24 O1[7]
+       O1[1] 10 ─┤        ├─ 23 O1[6]
+       O1[2] 11 ─┤        ├─ 22 O1[5]
        O1[3] 12 ─┤        ├─ 21 O2[7], I[7]
  I[0], O2[0] 13 ─┤        ├─ 20 O2[6], I[6]
  I[1], O2[1] 14 ─┤        ├─ 19 O2[5], I[5]
  I[2], O2[2] 15 ─┤        ├─ 18 O2[4], I[4]
-         GND 16 ─┤        ├─ 17 O2[3], I[3]
+       O1[4] 16 ─┤        ├─ 17 O2[3], I[3]
                  └────────┘
 */
 
@@ -98,14 +106,21 @@ private:
     bool _dumping;
 
     EEPROMType _eepromType;
-    unsigned int _romLength;
-    unsigned int _address;
+    bool _isParallel;
+    unsigned long _romLength;
+    unsigned long _address;
     unsigned long _baseBits;
+
+    void setupPins();
+    void imbueAddress(unsigned long& outputBits);
+    void imbueData(unsigned long& outputBits, unsigned char data);
+    void setOutputs(unsigned long state);
+    void toggleWrite(unsigned long state);
 
 public:
     EEPROMProgrammer();
-    void initializeBurn(unsigned int romLength, EEPROMType eepromType);
-    bool writeByte(unsigned char byte);
+    void initializeBurn(unsigned long romLength, EEPROMType eepromType);
+    bool writeByte(unsigned char data);
 
     //void initializeDump(unsigned int romCapacity, EEPROMType eepromType);
     //unsigned char readByte();
