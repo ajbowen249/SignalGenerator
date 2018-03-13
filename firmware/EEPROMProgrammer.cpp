@@ -14,7 +14,7 @@ void EEPROMProgrammer::initializeBurn(unsigned int romLength, EEPROMType eepromT
     // See pinout comments in header for explanation.
     switch(_eepromType) {
     case Parallel28:
-        _baseBits = 0x00000430;
+        _baseBits = 0x0000010C;
         break;
     default:
         break;
