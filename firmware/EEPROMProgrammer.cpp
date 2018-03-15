@@ -42,10 +42,15 @@ void EEPROMProgrammer::imbueAddress(unsigned long& outputBits) {
 }
 
 void EEPROMProgrammer::imbueData(unsigned long& outputBits, unsigned char data) {
+    // swap data
+    data = ((data >> 1) & 0x55) | ((data << 1) & 0xAA);
+    data = ((data >> 2) & 0x33)| ((data << 2) & 0xCC);
+    data = (data >> 4) | (data << 4);
     unsigned long lData = (unsigned long)data;
+
     if(_isParallel) {
-        outputBits |= ((data << 12) & 0x000E0000); // D0-2
-        outputBits |= ((data << 11) & 0x0000F800); // D3-7
+        outputBits |= ((lData << 12) & 0x000E0000); // D0-2
+        outputBits |= ((lData << 11) & 0x0000F800); // D3-7
     }
 }
 
@@ -68,17 +73,17 @@ void EEPROMProgrammer::setOutputs(unsigned long state) {
     state |= (data3to7 >> 3);
 
     digitalWrite(EPOLATCH_PIN, LOW);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, state >> 24);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, state >> 16);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, state >> 8);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, state);
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state);
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state >> 8);
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state >> 16);
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state >> 24);
     digitalWrite(EPOLATCH_PIN, HIGH);
 }
 
 void EEPROMProgrammer::toggleWrite(unsigned long state) {
     switch(_eepromType) {
     case Parallel28: {
-        unsigned long stateWithWriteEnable = state & 0xFFFFFFEF;
+        unsigned long stateWithWriteEnable = state & 0xFFFFFFF7;
         setOutputs(stateWithWriteEnable);
         setOutputs(state);
         break;
