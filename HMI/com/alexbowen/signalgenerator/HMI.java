@@ -31,6 +31,8 @@ public class HMI implements Runnable {
     private static final String SET_BUTTON = "Set";
     private static final String SIGNAL_GENERATOR_BORDER = "Signal Generator";
     private static final String EEPROM_PROGRAMMER_BORDER = "EEPROM Programmer";
+    private static final String READ_BUTTON = "Read";
+    private static final String Write_BUTTON = "Write";
 
     private final EEPROMOption[] COMPATIBLE_EEPROM_TYPES = {
         new EEPROMOption("24-Pin Parallel", 0, 24),
@@ -51,6 +53,8 @@ public class HMI implements Runnable {
     private JButton mSendButton;
 
     private JComboBox<EEPROMOption> mEEPROMTypeField;
+    private JButton mReadButton;
+    private JButton mWriteButton;
 
     private RandomAccessFile mPortFile;
     private BufferedReader mInputStream;
@@ -141,9 +145,20 @@ public class HMI implements Runnable {
         eepromGroup.add(selectionPanel);
 
         mEEPROMTypeField = new JComboBox<>(COMPATIBLE_EEPROM_TYPES);
+        mEEPROMTypeField.setSelectedIndex(1); // Default to 28 pin
         selectionPanel.add(mEEPROMTypeField);
 
         selectionPanel.add(new EEPROMPreview(mEEPROMTypeField));
+
+        JPanel readWritePanel = new JPanel();
+        readWritePanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        eepromGroup.add(readWritePanel);
+
+        mReadButton = new JButton(READ_BUTTON);
+        readWritePanel.add(mReadButton);
+
+        mWriteButton = new JButton(Write_BUTTON);
+        readWritePanel.add(mWriteButton);
 
         disconnectedControls();
 
@@ -314,7 +329,6 @@ public class HMI implements Runnable {
 
     class EEPROMOption {
         private String mName;
-        private int mOption;
         private int mPins;
 
         public EEPROMOption(String name, int option, int pins) {
