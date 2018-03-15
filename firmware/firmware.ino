@@ -5,10 +5,10 @@
 
 #include <Arduino.h>
 #include "SerialServer.h"
-#include "FunctionGenerator.h"
 
 FunctionGenerator G_Generator;
-SerialServer G_Server(&G_Generator);
+EEPROMProgrammer G_Programmer;
+SerialServer G_Server(&G_Generator, &G_Programmer);
 
 void setup() {
     Serial.begin(9600);

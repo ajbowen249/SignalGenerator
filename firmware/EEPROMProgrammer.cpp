@@ -116,16 +116,18 @@ void EEPROMProgrammer::initializeBurn(unsigned long romLength, EEPROMType eeprom
 }
 
 bool EEPROMProgrammer::writeByte(unsigned char data) {
-    if(_isParallel) {
-        unsigned long state = _baseBits;
-        imbueAddress(state);
-        imbueData(state, data);
-        setOutputs(state);
-        toggleWrite(state);
+    if(_burning) {
+        if(_isParallel) {
+            unsigned long state = _baseBits;
+            imbueAddress(state);
+            imbueData(state, data);
+            setOutputs(state);
+            toggleWrite(state);
 
-        if(++_address >= _romLength) {
-            digitalWrite(EPO_DATA_ENABLE_PIN, HIGH);
-            _burning = false;
+            if(++_address >= _romLength) {
+                digitalWrite(EPO_DATA_ENABLE_PIN, HIGH);
+                _burning = false;
+            }
         }
     }
 

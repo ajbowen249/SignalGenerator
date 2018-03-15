@@ -4,18 +4,24 @@
 #include <Arduino.h>
 
 #include "FunctionGenerator.h"
+#include "EEPROMProgrammer.h"
 
 enum ParseState {
-  ReadQuery,
-  ReadValue
+    ReadQuery,
+    ReadValue,
+    ReadArgs
 };
+
+#define BUFFER_SIZE 128
 
 class SerialServer {
     private:
+        String _mode;
         FunctionGenerator* _functionGenerator;
+        EEPROMProgrammer* _eepromProgrammer;
 
         int _inputPointer;
-        char _inputBuffer[128];
+        char _inputBuffer[BUFFER_SIZE];
 
         ParseState _state;
         String _argumentName;
@@ -27,10 +33,11 @@ class SerialServer {
         void setArgumentName();
         void returnArgumentValue();
         void setArgumentValue();
+        void callFunction();
         String bufferToString();
 
     public:
-        SerialServer(FunctionGenerator* functionGenerator);
+        SerialServer(FunctionGenerator* functionGenerator, EEPROMProgrammer* eepromProgrammer);
         void serve();
 };
 

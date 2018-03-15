@@ -1,5 +1,5 @@
-#ifndef __EEPROMPROGRAMMER_H_
-#define __EEPROMPROGRAMMER_H_
+#ifndef __EEPROMPROGRAMMER_H__
+#define __EEPROMPROGRAMMER_H__
 
 #include <Arduino.h>
 
@@ -94,7 +94,7 @@ ZIF Socket
                  └────────┘
 */
 
-enum EEPROMType {
+enum EEPROMType : int {
     Parallel24 = 0,
     Parallel28 = 1,
     Parallel32 = 2,
@@ -126,4 +126,4 @@ public:
     //unsigned char readByte();
 };
 
-#endif // __EEPROMPROGRAMMER_H_
+#endif // __EEPROMPROGRAMMER_H__
