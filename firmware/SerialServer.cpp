@@ -1,9 +1,10 @@
 #include "SerialServer.h"
 
-SerialServer::SerialServer(FunctionGenerator* functionGenerator) {
-    _functionGenerator = functionGenerator;
+SerialServer::SerialServer(FunctionGenerator* functionGenerator, EEPROMProgrammer* eepromProgrammer) :
+    _functionGenerator(functionGenerator),
+    _eepromProgrammer(eepromProgrammer),
+    _state(ReadQuery) {
     flushInputBuffer();
-    _state = ReadQuery;
 }
 
 void SerialServer::serve() {
@@ -38,7 +39,7 @@ void SerialServer::serve() {
         }
         case ReadArgs: {
             if(_inputBuffer[_inputPointer - 1] == ')') {
-                setArgumentValue();
+                callFunction();
                 _state = ReadQuery;
             }
 
@@ -69,14 +70,14 @@ void SerialServer::setArgumentValue() {
     }
 }
 
-void callFunction() {
+void SerialServer::callFunction() {
     String rawArgs = bufferToString();
     char args[BUFFER_SIZE];
     rawArgs.toCharArray(args, BUFFER_SIZE);
     char* arg;
 
     if(_argumentName.equalsIgnoreCase("initializeBurn")) {
-        _functionGenerator.stop();
+        _functionGenerator->stop();
 
         arg = strtok(args, " ,");
         if(!arg) {
@@ -84,22 +85,23 @@ void callFunction() {
             return;
         }
 
-        unsigned long romLength = atoul(arg);
+        unsigned long romLength = (unsigned long)atol(arg);
 
-        arg = strtok(args, " ,");
+        arg = strtok(NULL, " ,");
         if(!arg) {
             Serial.println();
             return;
         }
 
         int romType = atoi(arg);
-        _eepromProgrammer.initializeBurn(romLength, (EEPROMType)romType);
+        _eepromProgrammer->initializeBurn(romLength, (EEPROMType)romType);
     } else if(_argumentName.equalsIgnoreCase("w")) {
-        bool stillBurning = _eepromProgrammer.writeByte((unsigned char)args[0]));
+        bool stillBurning = _eepromProgrammer->writeByte((unsigned char)args[0]);
         if(!stillBurning) {
-            _functionGenerator.start();
+            _functionGenerator->start();
         }
 
+        Serial.println(stillBurning ? "true" : "false");
         return;
     }
 

@@ -3,9 +3,8 @@
 
 #include "config.h"
 
-FunctionGenerator::FunctionGenerator() {
-    _interval = DEFAULT_INTERVAL;
-}
+FunctionGenerator::FunctionGenerator() :
+    _interval(DEFAULT_INTERVAL) { }
 
 void FunctionGenerator::start() {
     pinMode(GENERATOR_PIN, OUTPUT);

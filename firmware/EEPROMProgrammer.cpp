@@ -131,5 +131,5 @@ bool EEPROMProgrammer::writeByte(unsigned char data) {
         }
     }
 
-    return !_burning;
+    return _burning;
 }
