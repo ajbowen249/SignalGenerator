@@ -55,6 +55,7 @@ public class HMI implements Runnable {
     private JComboBox<EEPROMOption> mEEPROMTypeField;
     private JButton mReadButton;
     private JButton mWriteButton;
+    private JProgressBar mEEPROProgressBar;
 
     private RandomAccessFile mPortFile;
     private BufferedReader mInputStream;
@@ -136,13 +137,13 @@ public class HMI implements Runnable {
         mSendButton.addActionListener(sendEventListner);
 
         JPanel eepromGroup = new JPanel();
-        eepromGroup.setLayout(new FlowLayout(FlowLayout.LEFT));
+        eepromGroup.setLayout(new BorderLayout());
         controlsBox.add(eepromGroup, BorderLayout.NORTH);
         eepromGroup.setBorder(BorderFactory.createTitledBorder(EEPROM_PROGRAMMER_BORDER));
 
         JPanel selectionPanel = new JPanel();
         selectionPanel.setLayout(new BoxLayout(selectionPanel, BoxLayout.Y_AXIS));
-        eepromGroup.add(selectionPanel);
+        eepromGroup.add(selectionPanel, BorderLayout.WEST);
 
         mEEPROMTypeField = new JComboBox<>(COMPATIBLE_EEPROM_TYPES);
         mEEPROMTypeField.setSelectedIndex(1); // Default to 28 pin
@@ -150,15 +151,26 @@ public class HMI implements Runnable {
 
         selectionPanel.add(new EEPROMPreview(mEEPROMTypeField));
 
-        JPanel readWritePanel = new JPanel();
-        readWritePanel.setLayout(new FlowLayout(FlowLayout.CENTER));
-        eepromGroup.add(readWritePanel);
+        JPanel readWriteGroup = new JPanel();
+        readWriteGroup.setLayout(new BorderLayout());
+        eepromGroup.add(readWriteGroup, BorderLayout.CENTER);
 
-        mReadButton = new JButton(READ_BUTTON);
-        readWritePanel.add(mReadButton);
+        JPanel readWriteButtonsPanel = new JPanel();
+        readWriteButtonsPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        readWriteGroup.add(readWriteButtonsPanel, BorderLayout.NORTH);
 
         mWriteButton = new JButton(Write_BUTTON);
-        readWritePanel.add(mWriteButton);
+        readWriteButtonsPanel.add(mWriteButton);
+
+        mReadButton = new JButton(READ_BUTTON);
+        readWriteButtonsPanel.add(mReadButton);
+
+        JPanel progressPanel = new JPanel();
+        progressPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        readWriteGroup.add(progressPanel);
+
+        mEEPROProgressBar = new JProgressBar();
+        progressPanel.add(mEEPROProgressBar);
 
         disconnectedControls();
 
@@ -329,6 +341,7 @@ public class HMI implements Runnable {
 
     class EEPROMOption {
         private String mName;
+        private int mOption;
         private int mPins;
 
         public EEPROMOption(String name, int option, int pins) {
@@ -380,12 +393,16 @@ public class HMI implements Runnable {
         public EEPROMPreview(JComboBox<EEPROMOption> selector) {
             super();
             setPreferredSize(new Dimension(PROGRAMMER_WIDTH, PROGRAMMER_HEIGHT));
-            selector.addActionListener(new ActionListener() {
+            ActionListener listener = new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     setNumPins(((EEPROMOption)selector.getSelectedItem()).getPins());
                 }
-            });
+            };
+            selector.addActionListener(listener);
+
+            // initialize pin count
+            listener.actionPerformed(null);
         }
 
         public void setNumPins(int numPins) {
