@@ -8,6 +8,8 @@ import javax.swing.*;
 import java.awt.*;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.regex.Matcher;
@@ -160,6 +162,12 @@ public class HMI implements Runnable {
         readWriteGroup.add(readWriteButtonsPanel, BorderLayout.NORTH);
 
         mWriteButton = new JButton(Write_BUTTON);
+        mWriteButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                startEEPROMBurn();
+            }
+        });
         readWriteButtonsPanel.add(mWriteButton);
 
         mReadButton = new JButton(READ_BUTTON);
@@ -282,6 +290,10 @@ public class HMI implements Runnable {
     }
 
     private String transact(String command) {
+        return transact(command.getBytes("ASCII"));
+    }
+
+    private String transact(byte[] command) {
         try{
             write(command);
             return readLine();
@@ -304,15 +316,28 @@ public class HMI implements Runnable {
         mSendButton.setEnabled(true);
         mIntervalField.setEnabled(true);
         mDisconnectButton.setEnabled(true);
+        mWriteButton.setEnabled(true);
+        mReadButton.setEnabled(true);
+        mEEPROMTypeField.setEnabled(true);
 
         mConnectButton.setEnabled(false);
     }
 
+    private void rwControls() {
+        mWriteButton.setEnabled(false);
+        mReadButton.setEnabled(false);
+        mEEPROMTypeField.setEnabled(false);
+    }
+
     private void write(String command) throws IOException {
+        write(command.getBytes("ASCII"));
+    }
+
+    private void write(byte[] command) throws IOException {
         if (IS_WINDOWS) {
-            mPortFile.write(command.getBytes("ASCII"));
+            mPortFile.write(command);
         } else {
-            mOutputStream.write(command.getBytes("ASCII"));
+            mOutputStream.write(command);
         }
     }
 
@@ -327,6 +352,48 @@ public class HMI implements Runnable {
         }
 
         return response.replace("\r", "").replace("\n", "");
+    }
+
+    private void startEEPROMBurn() {
+        JFileChooser chooser = new JFileChooser();
+        if(chooser.showOpenDialog(mMainWindow) == JFileChooser.APPROVE_OPTION) {
+            final File inputFile = chooser.getSelectedFile();
+            SwingWorker<Void, Void> writeWorker = new SwingWorker<Void,Void>(){
+                @Override
+                protected Void doInBackground() throws Exception {
+                    try {
+                        rwControls();
+                        byte[] fileContents = Files.readAllBytes(Paths.get(inputFile.getAbsolutePath()));
+                        int length = fileContents.length;
+
+                        mEEPROProgressBar.setValue(0);
+                        mEEPROProgressBar.setMinimum(0);
+                        mEEPROProgressBar.setMaximum(length);
+
+                        // int chipType = ((EEPROMOption)selector.getSelectedItem()).getOption();
+                        // write("#initializeBurn(" + length + "," + chipType + ")");
+
+                        for(int i = 0; i < length; i++) {
+                            System.out.write(fileContents[i]);
+                            Thread.sleep(1);
+
+                            // write("#w(");
+                            // write(new byte[]{ fileContents[i] });
+                            // transact(")");
+                            mEEPROProgressBar.setValue(i);
+                        }
+                    } catch(Exception e) {
+                        setStatus("Error reading ROM file: " + e.getMessage());
+                    }
+
+                    connectedControls();
+
+                    return null;
+                }
+            };
+
+            writeWorker.execute();
+        }
     }
 
     public static void main(String[] args) {
@@ -357,6 +424,10 @@ public class HMI implements Runnable {
 
         int getPins() {
             return mPins;
+        }
+
+        int getOption() {
+            return mOption;
         }
     }
 
