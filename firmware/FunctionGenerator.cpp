@@ -8,9 +8,9 @@ FunctionGenerator::FunctionGenerator() :
 
 void FunctionGenerator::start() {
     pinMode(GENERATOR_PIN, OUTPUT);
+    digitalWrite(GENERATOR_PIN, HIGH);
     Timer1.initialize(_interval);
     Timer1.attachInterrupt(toggle);
-    Timer1.start();
 }
 
 void FunctionGenerator::stop() {

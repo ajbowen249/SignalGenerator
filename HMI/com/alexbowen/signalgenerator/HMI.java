@@ -290,7 +290,14 @@ public class HMI implements Runnable {
     }
 
     private String transact(String command) {
-        return transact(command.getBytes("ASCII"));
+        try {
+            byte[] test = command.getBytes("ASCII");
+            return transact(test);
+        } catch (UnsupportedEncodingException ex) {
+            setStatus("Communication error: " + ex);
+        }
+
+        return "";
     }
 
     private String transact(byte[] command) {
@@ -370,16 +377,13 @@ public class HMI implements Runnable {
                         mEEPROProgressBar.setMinimum(0);
                         mEEPROProgressBar.setMaximum(length);
 
-                        // int chipType = ((EEPROMOption)selector.getSelectedItem()).getOption();
-                        // write("#initializeBurn(" + length + "," + chipType + ")");
+                        int chipType = ((EEPROMOption)mEEPROMTypeField.getSelectedItem()).getOption();
+                        write("#initializeBurn(" + length + "," + chipType + ")");
 
                         for(int i = 0; i < length; i++) {
-                            System.out.write(fileContents[i]);
-                            Thread.sleep(1);
-
-                            // write("#w(");
-                            // write(new byte[]{ fileContents[i] });
-                            // transact(")");
+                            write("#w(");
+                            write(new byte[]{ fileContents[i] });
+                            transact(")");
                             mEEPROProgressBar.setValue(i);
                         }
                     } catch(Exception e) {

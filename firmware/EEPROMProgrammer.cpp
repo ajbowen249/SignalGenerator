@@ -114,8 +114,8 @@ void EEPROMProgrammer::initializeBurn(unsigned long romLength, EEPROMType eeprom
         break;
     }
 
-    digitalWrite(EPO_DATA_ENABLE_PIN, LOW);
     setOutputs(_baseBits);
+    digitalWrite(EPO_DATA_ENABLE_PIN, LOW);
 
     _burning = true;
 }
