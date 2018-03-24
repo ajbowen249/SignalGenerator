@@ -54,6 +54,10 @@ void EEPROMProgrammer::imbueData(unsigned long& outputBits, unsigned char data) 
     }
 }
 
+unsigned char rotateLeft(unsigned char data) {
+    return (data << 1) | ((data & 0x80) ? 0x01 : 0x00);
+}
+
 void EEPROMProgrammer::setOutputs(unsigned long state) {
     // The incoming state assumes bits and pins map 1:1.
     // The actual shift registers are rearranged to allow the
@@ -72,11 +76,12 @@ void EEPROMProgrammer::setOutputs(unsigned long state) {
     state |= (data012 >> 4);
     state |= (data3to7 >> 3);
 
+    // using rotateLeft here because I messed up the wiring.
     digitalWrite(EPOLATCH_PIN, LOW);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state >> 8);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state >> 16);
-    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, LSBFIRST, state >> 24);
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, rotateLeft(state));
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, rotateLeft(state >> 8));
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, rotateLeft(state >> 16));
+    shiftOut(EPDATA_OUT_PIN, EPOCLOCK_PIN, MSBFIRST, rotateLeft(state >> 24));
     digitalWrite(EPOLATCH_PIN, HIGH);
 }
 
@@ -109,8 +114,8 @@ void EEPROMProgrammer::initializeBurn(unsigned long romLength, EEPROMType eeprom
         break;
     }
 
-    setOutputs(_baseBits);
     digitalWrite(EPO_DATA_ENABLE_PIN, LOW);
+    setOutputs(_baseBits);
 
     _burning = true;
 }
